@@ -1,5 +1,5 @@
-## Use
+## 加载器
 
 ```lua
--Store server script
--Server function
+
+loadstring(game:HttpGet(('https://raw.githubusercontent.com/DevSloPo/Local-player/refs/heads/main/player.luau')))()
