@@ -1,0 +1,286 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ModelNameUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.ResetOnSpawn = false
+
+local TWEEN_INFO = {
+    DEFAULT = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+    SMOOTH = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+}
+
+local function createCorner(parent, radius)
+	local uicorner = Instance.new("UICorner")
+	uicorner.CornerRadius = UDim.new(0, 10)
+	uicorner.Parent = parent
+end
+
+local function tweenProperty(instance, properties, tweenInfo)
+    local tween = TweenService:Create(instance, tweenInfo or TWEEN_INFO.DEFAULT, properties)
+    tween:Play()
+    return tween
+end
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 360, 0, 100)
+frame.Position = UDim2.new(0.5, 0, 0.15, 0)
+frame.AnchorPoint = Vector2.new(0.5, 0.5)
+frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+frame.BackgroundTransparency = 0.2
+frame.Visible = false
+frame.Parent = screenGui
+createCorner(frame, 4)
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundTransparency = 1
+titleBar.Parent = frame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(0, 200, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 22
+titleLabel.Text = "XK模型工具"
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+local titleGradient = Instance.new("UIGradient")
+titleGradient.Color = ColorSequence.new{
+    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 0, 0)),
+    ColorSequenceKeypoint.new(0.10, Color3.fromRGB(255, 127, 0)),
+    ColorSequenceKeypoint.new(0.20, Color3.fromRGB(255, 255, 0)),
+    ColorSequenceKeypoint.new(0.30, Color3.fromRGB(0, 255, 0)),
+    ColorSequenceKeypoint.new(0.40, Color3.fromRGB(0, 255, 255)),
+    ColorSequenceKeypoint.new(0.50, Color3.fromRGB(0, 0, 255)),
+    ColorSequenceKeypoint.new(0.60, Color3.fromRGB(139, 0, 255)),
+    ColorSequenceKeypoint.new(0.70, Color3.fromRGB(255, 0, 0)),
+    ColorSequenceKeypoint.new(0.80, Color3.fromRGB(255, 127, 0)),
+    ColorSequenceKeypoint.new(0.90, Color3.fromRGB(255, 255, 0)),
+    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(0, 255, 0))
+}
+titleGradient.Rotation = 360
+titleGradient.Parent = titleLabel
+
+spawn(function()
+    while screenGui.Parent do
+        for i = 0, 360, 1 do
+            if not screenGui.Parent then break end
+            titleGradient.Rotation = i
+            task.wait(0.05)
+        end
+    end
+end)
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(0, 0, 0)
+stroke.Thickness = 1
+stroke.Parent = titleLabel
+
+local currentModel = nil
+local isMinimized = false
+local isDestroyed = false
+
+local controlButtons = Instance.new("Frame")
+controlButtons.Size = UDim2.new(0, 80, 0, 30)
+controlButtons.Position = UDim2.new(1, -85, 0, 0)
+controlButtons.BackgroundTransparency = 1
+controlButtons.Parent = titleBar
+
+local function createControlButton(name, text, color, pos)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 30, 0, 30)
+	btn.Position = UDim2.new(0, pos, 0, 0)
+	btn.BackgroundColor3 = color
+	btn.Text = text
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.Font = Enum.Font.Gotham
+	btn.TextSize = 18
+	btn.Name = name
+	btn.Parent = controlButtons
+	createCorner(btn, 4)
+	return btn
+end
+
+local minimizeButton = createControlButton("Minimize", "缩小", Color3.fromRGB(0, 0, 0), 0)
+local closeButton = createControlButton("Close", "关闭", Color3.fromRGB(0, 0, 0), 40)
+
+local nameLabel = Instance.new("TextLabel")
+nameLabel.Size = UDim2.new(0, 200, 0, 48)
+nameLabel.Position = UDim2.new(0, 10, 0, 36)
+nameLabel.BackgroundTransparency = 1
+nameLabel.TextColor3 = Color3.new(1, 1, 1)
+nameLabel.Font = Enum.Font.GothamBold
+nameLabel.TextSize = 20
+nameLabel.Text = ""
+nameLabel.TextXAlignment = Enum.TextXAlignment.Left
+nameLabel.TextYAlignment = Enum.TextYAlignment.Top
+nameLabel.TextWrapped = true
+nameLabel.Parent = frame
+
+local nameStroke = Instance.new("UIStroke")
+nameStroke.Color = Color3.fromRGB(0, 0, 0)
+nameStroke.Thickness = 1
+nameStroke.Parent = nameLabel
+
+local deleteButton = Instance.new("TextButton")
+deleteButton.Size = UDim2.new(0, 80, 0, 36)
+deleteButton.Position = UDim2.new(1, -180, 0, 36)  
+deleteButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+deleteButton.BackgroundTransparency = 0.3
+deleteButton.TextColor3 = Color3.new(1, 1, 1)
+deleteButton.Font = Enum.Font.GothamMedium
+deleteButton.TextSize = 18
+deleteButton.Text = "删除"
+deleteButton.AutoButtonColor = false
+deleteButton.Parent = frame
+createCorner(deleteButton, 4)
+
+local copyButton = Instance.new("TextButton")
+copyButton.Size = UDim2.new(0, 80, 0, 36)
+copyButton.Position = UDim2.new(1, -90, 0, 36)  
+copyButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+copyButton.BackgroundTransparency = 0.3
+copyButton.TextColor3 = Color3.new(1, 1, 1)
+copyButton.Font = Enum.Font.GothamMedium
+copyButton.TextSize = 18
+copyButton.Text = "复制"
+copyButton.AutoButtonColor = false
+copyButton.Parent = frame
+createCorner(copyButton, 4)
+
+copyButton.MouseButton1Click:Connect(function()
+	if nameLabel.Text ~= "" then
+		local name = nameLabel.Text
+		pcall(setclipboard, name)
+		copyButton.Text = "复制成功"
+		task.delay(1.5, function()
+			if copyButton then copyButton.Text = "复制" end
+		end)
+	end
+end)
+
+deleteButton.MouseButton1Click:Connect(function()
+	if currentModel and currentModel.Parent then		
+		local humanoid = currentModel:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			for _, plr in ipairs(Players:GetPlayers()) do
+				if plr.Character == currentModel then
+					return 
+				end
+			end
+		end
+		currentModel:Destroy()
+		currentModel = nil
+		frame.Visible = false
+	end
+end)
+
+minimizeButton.MouseButton1Click:Connect(function()
+	if isMinimized then
+		tweenProperty(frame, {
+			Size = UDim2.new(0, 360, 0, 100)
+		}, TWEEN_INFO.DEFAULT)
+		nameLabel.Visible = true
+		copyButton.Visible = true
+		deleteButton.Visible = true
+		minimizeButton.Text = "缩小"
+	else
+		tweenProperty(frame, {
+			Size = UDim2.new(0, 360, 0, 40)
+		}, TWEEN_INFO.DEFAULT)
+		nameLabel.Visible = false
+		copyButton.Visible = false
+		deleteButton.Visible = false
+		minimizeButton.Text = "展开"
+	end
+	isMinimized = not isMinimized
+end)
+
+closeButton.MouseButton1Click:Connect(function()
+	isDestroyed = true
+	screenGui:Destroy()
+end)
+
+mouse.Button1Down:Connect(function()
+	if isDestroyed then return end
+	local target = mouse.Target
+	if target and target:IsA("BasePart") then
+		local model = target:FindFirstAncestorWhichIsA("Model")
+		local finalModel = nil
+		while model do
+			if model:FindFirstChildOfClass("Humanoid") then
+				finalModel = model
+				break
+			end
+			model = model.Parent:FindFirstAncestorWhichIsA("Model")
+		end
+		if not finalModel then
+			model = target:FindFirstAncestorOfClass("Model")
+			finalModel = model
+		end
+		if finalModel then
+			currentModel = finalModel
+			local modelName = finalModel.Name
+			nameLabel.Text = ""
+			frame.Visible = true
+			for i = 1, #modelName do
+				if not frame.Visible then break end
+				nameLabel.Text = string.sub(modelName, 1, i)
+				task.wait(0.03)
+			end
+			if isMinimized then minimizeButton:Activate() end
+		end
+	end
+end)
+
+local dragging, dragStartPos, dragStartFramePos = false
+titleBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+		dragStartPos = input.Position
+		dragStartFramePos = frame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+titleBar.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+		local delta = input.Position - dragStartPos
+		frame.Position = UDim2.new(
+			dragStartFramePos.X.Scale, dragStartFramePos.X.Offset + delta.X,
+			dragStartFramePos.Y.Scale, dragStartFramePos.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if isDestroyed then return end
+	if not gameProcessed and input.KeyCode == Enum.KeyCode.M and UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+		if frame.Visible then
+			tweenProperty(frame, {
+				BackgroundTransparency = 1
+			}, TWEEN_INFO.DEFAULT).Completed:Connect(function()
+				frame.Visible = false
+				frame.BackgroundTransparency = 0.2
+			end)
+		else
+			frame.Visible = true
+			frame.BackgroundTransparency = 1
+			tweenProperty(frame, {
+				BackgroundTransparency = 0.2
+			}, TWEEN_INFO.DEFAULT)
+		end
+	end
+end)
