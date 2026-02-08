@@ -1,0 +1,75 @@
+--NOOB GAME By XiaoXuan
+local L = loadstring(game:HttpGet('https://raw.githubusercontent.com/DevSloPo/obsidian_UI/main/Library.lua'))()
+L:Notify({
+    Title = "XoneScriptK Hub",
+    Description = "自带的忍者键盘按G键开启/关闭自动刷钱",
+    Time = 50
+})
+local S = Instance.new("Sound")
+S.SoundId = "rbxassetid://4590662766"
+S.Parent = game:GetService("SoundService")
+S.Volume = 5
+S:Play()
+S.Ended:Wait()
+S:Destroy()
+local P = game:GetService("Players")
+local R = game:GetService("RunService")
+local U = game:GetService("UserInputService")
+local p = P.LocalPlayer
+local c = p.Character or p.CharacterAdded:Wait()
+local h = c:WaitForChild("HumanoidRootPart")
+local tp = Vector3.new(-397.4068603515625, 123.89984130859375, 631.749267578125)
+local AE = false
+U.InputBegan:Connect(function(i,g)
+    if g then return end
+    if i.KeyCode == Enum.KeyCode.G then
+        AE = not AE        
+        L:Notify({
+            Title = "XoneScriptK Hub",
+            Description = AE and "开始自动刷钱和传送..." or "自动刷钱和传送已停止...",
+            Time = 6
+        })        
+        local S2 = Instance.new("Sound")
+        S2.SoundId = "rbxassetid://4590662766"
+        S2.Parent = game:GetService("SoundService")
+        S2.Volume = 5
+        S2:Play()
+        S2.Ended:Wait()
+        S2:Destroy()
+    end
+end)
+R.Heartbeat:Connect(function()
+    if not AE then return end    
+    if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+        local rp = p.Character.HumanoidRootPart
+        rp.CFrame = CFrame.new(tp)
+        rp.Velocity = Vector3.new(0, 0, 0)
+    end 
+    if not c or not h then
+        c = p.Character
+        if c then h = c:FindFirstChild("HumanoidRootPart") end
+        return
+    end    
+    local pos = h.Position
+    for _, d in pairs(workspace:GetDescendants()) do
+        if d:IsA("ProximityPrompt") and d.Enabled then
+            local pt = d.Parent
+            local dist
+            if pt:IsA("BasePart") then
+                dist = (pos - pt.Position).Magnitude
+            elseif pt:IsA("Model") and pt.PrimaryPart then
+                dist = (pos - pt.PrimaryPart.Position).Magnitude
+            else
+                dist = 999
+            end
+            
+            if dist <= 10 then
+                fireproximityprompt(d)
+            end
+        end
+    end
+end)
+p.CharacterAdded:Connect(function(nc)
+    c = nc
+    h = c:WaitForChild("HumanoidRootPart")
+end)
