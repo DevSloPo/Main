@@ -1,3 +1,5 @@
+       -----恭喜你找到了源码.当你看到时你就知道你被圈了----
+    此脚本使用的是神秘鱼开源的脚本二创伪装成外国脚本出售
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
@@ -10,7 +12,7 @@ Library.ShowToggleFrameInKeybinds = false
 Library.ShowCustomCursor = true
 
 local localPlayer = game:GetService("Players").LocalPlayer
-local allowedIds = {[10615465463] = true,  [4490894524] = true, [7731385535] = true, [7258604306] = true}
+local allowedIds = {[10615465463] = true,  [4490894524] = true, [7731385535] = true, [7873534737] = true}
 if not allowedIds[localPlayer.UserId] then
     localPlayer:Kick("Invalid User")
     return
