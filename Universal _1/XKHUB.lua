@@ -2077,6 +2077,7 @@ local fq = {
 	BulletSpeed = 1000,
 	HardLock = false,
   SmoothLock = false,
+	FovColor = Color3.fromRGB(255, 255, 255),
 }
 
 local dv = nil
@@ -2086,7 +2087,7 @@ if ds then
 		dv.Thickness = 1
 		dv.NumSides = 64
 		dv.Filled = false
-    dv.Color = Color3.fromRGB(255, 255, 255)
+    dv.Color = fq.FovColor
     dv.Radius = fq.Radius
 		dv.Visible = true
 	end)
@@ -2096,7 +2097,7 @@ hw:AddDropdown("AimDevice", { Values = { "Camera", "Mouse" },Default = 1,Multi =
 
 hw:AddToggle("AimEnabled", { Text = "启用自瞄", Default = false, Callback = function(v) fq.Enabled = v end }):AddKeyPicker("AimKey", { Default = "B", Mode = "Toggle", SyncToggleState = true, Text = "自瞄" })
 
-hw:AddSlider("AimSmooth", { Text = "顺畅度", Default = 20, Min = 1, Max = 100, Rounding = 0, Callback = function(v) fq.Smooth = v end })
+hw:AddSlider("AimSmooth", { Text = "顺畅度", Default = 20, Min = 0, Max = 100, Rounding = 0, Tooltip = "0 = 瞬间锁定，越大越平滑", Callback = function(v) fq.Smooth = v end })
 
 local dp = nil
 
@@ -2113,6 +2114,7 @@ local function ak()
 		end
 		dp = nil
 	end)
+end
 hw:AddToggle("AimShowFOV", {
 	Text = "显示FOV圈",
 	Default = false,
@@ -2121,10 +2123,19 @@ hw:AddToggle("AimShowFOV", {
 		if dv then pcall(function() dv.Visible = v and ds end) end
 		if v then ak() end
 	end,
+}):AddColorPicker("AimFovColor", {
+	Default = Color3.fromRGB(255, 255, 255),
+	Text = "FOV圈颜色",
+	Transparency = 0,
+	Callback = function(v)
+		fq.FovColor = v
+		if dv then pcall(function() dv.Color = v end) end
+	end,
 })
 hw:AddSlider("AimRadius", {
   Text = "视野半径",
-	Default = 120, Min = 20, Max = 500, Rounding = 0,
+	Default = 120, Min = 10, Max = 800, Rounding = 0,
+	Tooltip = "FOV 圈半径，同时决定自瞄判定范围",
   Callback = function(v)
 		fq.Radius = v
 		if dv then pcall(function() dv.Radius = v end) end
@@ -2166,7 +2177,6 @@ hw:AddSlider("AimBulletSpeed", { Text="子弹速度",Default=1000, Min = 50, Max
 hw:AddDropdown("AimPart", { Values = { "Head", "HumanoidRootPart", "Torso", "UpperTorso" }, Default = 1, Multi = false, Text = "打击目标", Callback = function(v) fq.Part = v end })
 
 
-end
 local function bk(gz)
   if not gz then return nil end
   local p = gz:FindFirstChild(fq.Part)
@@ -2247,7 +2257,7 @@ local function ba()
 	return ia
 end
 RS.RenderStepped:Connect(function()
-	if not (fq.HardLock or fq.SmoothLock) then return end
+	if not fq.Enabled then return end
 	local t = ba()
 	if not t then return end
 	local gx = bk(t.Character)
@@ -2255,9 +2265,9 @@ RS.RenderStepped:Connect(function()
 	pcall(function()
 		local gc = cs(gx)
 		local ht = CFrame.new(ja.CFrame.Position, gc)
-		if fq.HardLock then
+		if fq.HardLock or fq.Smooth <= 0 then
 			ja.CFrame = ht
-		elseif fq.SmoothLock then
+		else
 			ja.CFrame = ja.CFrame:Lerp(ht, math.clamp(1 / fq.Smooth, 0.02, 1))
 		end
 	end)
