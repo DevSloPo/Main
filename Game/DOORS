@@ -83,19 +83,14 @@ Abysall.Interface = {
 		local InfoTab = Window:AddTab("信息", "info")
 		local Left = InfoTab:AddLeftGroupbox("脚本信息", "book-open")
 		Left:AddLabel("XK DOORS", true)
-		Left:AddLabel("DOORS 强脚本", true)
 		Left:AddDivider()
-		Left:AddLabel("本脚本为对国外脚本的二次修改版本", true)
+		Left:AddLabel("本脚本为对国外开源项目的二次修改版本", true)
 		Left:AddLabel("原项目：Abysall Hub (Doors)", true)
-		Left:AddLabel("二改：XK Hub / XoneScriptK", true)
-		Left:AddDivider()
-		Left:AddLabel("UI 库 (DevSloPo/obsidian_UI)", true)
+		Left:AddLabel("二改/汉化：XK Hub / XoneScriptK", true)
 		Left:AddLabel("配置目录：Abysall/Doors", true)
 		local Right = InfoTab:AddRightGroupbox("说明", "help-circle")
 		Right:AddLabel("红色标注的功能存在风险，或当前楼层不可用。", true)
 		Right:AddLabel("部分功能依赖执行器能力，不支持时会自动禁用。", true)
-		Right:AddDivider()
-		Right:AddLabel("自动速度绕过", true)
 	end,
 
 	ApplySettingsTab = function(Window)
@@ -199,11 +194,11 @@ local Connections = {}
 
 local Globals = {}
 local Connections = {}
-local ESPConnections = {}
+local ESPConnections = setmetatable({}, { __mode = "k" })
 local Groupboxes = {}
-local FakePrompts = {}
+local FakePrompts = setmetatable({}, { __mode = "k" })
 local Functions = {}
-local PartProperties = {}
+local PartProperties = setmetatable({}, { __mode = "k" })
 
 local Objects = {
 	Prompts = {},
@@ -1198,7 +1193,7 @@ Functions.AddESP = function(ESPOptions, RoomBased)
 		local CurrentRoom = tonumber(LocalPlayer:GetAttribute("CurrentRoom"))
 		local ObjectRoom = tonumber(Object:GetAttribute("ParentRoom"))
 
-		if ObjectRoom == CurrentRoom or (table.find(Objects.Doors, Object) and ObjectRoom == CurrentRoom + 1) then
+		if ObjectRoom == CurrentRoom or (Object:GetAttribute("IsDoorHighlight") and ObjectRoom == CurrentRoom + 1) then
 			Abysall.ESPLibrary:AddESP(ESPOptions)
 		end
 
@@ -1210,7 +1205,7 @@ Functions.AddESP = function(ESPOptions, RoomBased)
 			local NewCurrentRoom = tonumber(LocalPlayer:GetAttribute("CurrentRoom"))
 			local ObjRoom = tonumber(Object:GetAttribute("ParentRoom"))
 
-			if ObjRoom == NewCurrentRoom or (table.find(Objects.Doors, Object) and ObjRoom == NewCurrentRoom + 1) then
+			if ObjRoom == NewCurrentRoom or (Object:GetAttribute("IsDoorHighlight") and ObjRoom == NewCurrentRoom + 1) then
 				Abysall.ESPLibrary:AddESP(ESPOptions)
 			else
 				Abysall.ESPLibrary:RemoveESP(Object)
@@ -1225,8 +1220,7 @@ Functions.AddESP = function(ESPOptions, RoomBased)
 			if Abysall then
 				Abysall.ESPLibrary:RemoveESP(Object)
 			end
-			local Pos = table.find(Connections, RoomConnection)
-			if Pos then table.remove(Connections, Pos) end
+			ESPConnections[Object] = nil
 		end)
 	else
 		Abysall.ESPLibrary:AddESP(ESPOptions)
@@ -1236,10 +1230,9 @@ end
 Functions.RemoveESP = function(Object)
 	local Conn = ESPConnections[Object]
 	if Conn then
-		Conn:Disconnect()
+		pcall(function() Conn:Disconnect() end)
 		ESPConnections[Object] = nil
-		local Pos = table.find(Connections, Conn)
-		if Pos then table.remove(Connections, Pos) end
+		-- 不做 O(n) 的 table.find，断开的引用交由 CompactConnections 定期回收
 	end
 	Abysall.ESPLibrary:RemoveESP(Object)
 end
@@ -3413,7 +3406,7 @@ Toggles.ForgetMeNotSolver:OnChanged(function(Value)
 end)
 
 Toggles.BypassWater:OnChanged(function(Value)
-	Functions.Notify({ Title = "位置伪装会导致此功能失效！" })
+	Functions.Notify({ Title = "无敌会导致此功能失效！" })
 
 	if WaterBypassConnection then
 		WaterBypassConnection:Disconnect()
@@ -4420,7 +4413,7 @@ Groupboxes.Exploits_BypassRight:AddToggle("DisableAnticheat", {
 	Tooltip = "互动梯子后彻底关闭反作弊。"
 })
 Groupboxes.Exploits_BypassRight:AddToggle("VelocityManipulationToggle", {
-	Text = "速度操控", Default = false,
+	Text = "绕过", Default = false,
 	Tooltip = "缓慢前移角色，规避游戏的反穿墙机制。"
 })
 Toggles.DisableAnticheat:OnChanged(function(Value)
@@ -4430,7 +4423,7 @@ Toggles.DisableAnticheat:OnChanged(function(Value)
 	end
 end)
 Toggles.VelocityManipulationToggle:AddKeyPicker("VelocityManipulationKeybind", {
-	Text = "速度操控", Default = "V",
+	Text = "绕过", Default = "V",
 	Mode = Library.IsMobile and "Toggle" or "Hold", SyncToggleState = true
 })
 Groupboxes.Exploits_BypassRight:AddDropdown("VelocityManipulationMode", {
@@ -4550,11 +4543,11 @@ end)
 
 Groupboxes.Exploits_BypassRight:AddDivider()
 Groupboxes.Exploits_BypassRight:AddToggle("PositionSpoof", {
-	Text = "位置伪装", Default = false,
+	Text = "无敌", Default = false, Risky = true,
 	Tooltip = "让角色在服务器端显示为位于地下，从而免受 Rush 类实体伤害。"
 })
 Groupboxes.Exploits_BypassRight:AddToggle("CrouchSpoof", {
-	Text = "下蹲伪装", Default = false, Tooltip = "让游戏认为你一直在下蹲。"
+	Text = "下蹲伪装", Default = false, Risky = true, Tooltip = "让游戏认为你一直在下蹲。"
 })
 Toggles.PositionSpoof:OnChanged(function(Value)
 	if Floor ~= "Fools" and Floor ~= "OldHotel" then
@@ -4569,7 +4562,7 @@ Toggles.PositionSpoof:OnChanged(function(Value)
 	end
 end)
 Toggles.PositionSpoof:AddKeyPicker("PositionSpoof", {
-	Text = "位置伪装", Default = "B", Mode = "Toggle", SyncToggleState = true
+	Text = "无敌", Default = "B", Mode = "Toggle", SyncToggleState = true
 })
 Toggles.CrouchSpoof:OnChanged(function(Value)
 	if RemotesFolder:FindFirstChild("Crouch") then
@@ -4692,7 +4685,7 @@ Toggles.RemoveInteractingSounds:OnChanged(function(Value)
 	Globals.MainUI.Initiator.Main_Game.Reminder.Caption.Volume = Value and 0 or 0.1
 end)
 
-Groupboxes.Visuals_LeftTab = Tabs.Visuals:AddLeftTabbox("相机 / 效果")
+Groupboxes.Visuals_LeftTab = Tabs.Visuals:AddLeftTabbox("相机 / 效果 / 性能")
 Groupboxes.Visuals_Camera = Groupboxes.Visuals_LeftTab:AddTab("相机")
 Groupboxes.Visuals_Camera:AddToggle("AmbientToggle", { Text = "环境光", Default = false, Tooltip = "将光照颜色改为指定值。" })
 Groupboxes.Visuals_Camera:AddSlider("FieldOfView", { Text = "视野角度", Min = 1, Max = 120, Default = 70, Rounding = 0 })
@@ -4724,6 +4717,172 @@ Groupboxes.Visuals_Camera:AddToggle("ViewmodelOffsetToggle", {
 Groupboxes.Visuals_Camera:AddSlider("ViewmodelOffsetX", { Text = "X 偏移", Min = -10, Max = 10, Default = 0, Rounding = 1, Compact = true, Disabled = not Functions.CheckCompatability({"require"}), DisabledTooltip = Globals.IncompatibleMessage })
 Groupboxes.Visuals_Camera:AddSlider("ViewmodelOffsetY", { Text = "Y 偏移", Min = -10, Max = 10, Default = 0, Rounding = 1, Compact = true, Disabled = not Functions.CheckCompatability({"require"}), DisabledTooltip = Globals.IncompatibleMessage })
 Groupboxes.Visuals_Camera:AddSlider("ViewmodelOffsetZ", { Text = "Z 偏移", Min = -10, Max = 10, Default = 0, Rounding = 1, Compact = true, Disabled = not Functions.CheckCompatability({"require"}), DisabledTooltip = Globals.IncompatibleMessage })
+
+Groupboxes.Visuals_Performance = Groupboxes.Visuals_LeftTab:AddTab("性能")
+
+Groupboxes.Visuals_Performance:AddToggle("LowQuality", {
+	Text = "低画质", Default = false,
+		Tooltip = "通过全局画质等级降档实现，不遍历任何对象，开启与关闭都无卡顿。"
+})
+Toggles.LowQuality:AddKeyPicker("LowQualityKeybind", { Text = "低画质", Default = "P", Mode = "Toggle", SyncToggleState = true })
+Groupboxes.Visuals_Performance:AddSlider("LowQualityIntensity", {
+	Text = "强度", Min = 1, Max = 3, Default = 3, Rounding = 0, Compact = true,
+		Tooltip = "1 = 画质等级最低 + 关阴影｜2 = 追加光照兼容模式｜3 = 追加关闭后处理"
+})
+Groupboxes.Visuals_Performance:AddSlider("LowQualityDistance", {
+	Text = "渲染距离", Min = 5, Max = 500, Default = 60, Rounding = 0, Compact = true,
+	Tooltip = "缩短可见距离，数值越低越流畅。"
+})
+
+	Globals.LowQuality = {
+		Active = false,
+		Records = {},
+		Queue = {},
+		Index = 1,
+		Done = setmetatable({}, { __mode = "k" }),
+		Pump = nil,
+		Conn = nil,
+		LastReassert = 0,
+	}
+	local LQ = Globals.LowQuality
+	local LQ_Budget = 0.0015
+	local LQ_FxClasses = {
+		ParticleEmitter = true, Trail = true, Beam = true, Fire = true, Smoke = true,
+		Sparkles = true, PointLight = true, SpotLight = true, SurfaceLight = true,
+	}
+	local LQ_PostFx = {
+		BloomEffect = true, DepthOfFieldEffect = true, ColorCorrectionEffect = true,
+		SunRaysEffect = true, BlurEffect = true,
+	}
+
+	-- 只作用于单例对象（Lighting / Terrain / Rendering），改动条数恒定，开销可忽略
+	local function LQ_Set(Object, Property, Value)
+		if not Object then return end
+		local Ok, Old = pcall(function() return Object[Property] end)
+		if not Ok or Old == Value then return end
+		if pcall(function() Object[Property] = Value end) then
+			LQ.Records[#LQ.Records + 1] = { Object, Property, Old }
+		end
+	end
+
+	-- 核心：全局画质等级降档。Roblox 会自行降采样、降材质、关抗锯齿，
+	-- 这是唯一真正有效的手段，且不需要遍历任何对象。
+	local function LQ_ApplyGlobal()
+		local Intensity = Options.LowQualityIntensity.Value
+		local Lighting = Services.Lighting
+
+		pcall(function()
+			local R = settings().Rendering
+			if R.QualityLevel ~= Enum.QualityLevel.Level01 then
+				LQ.Records[#LQ.Records + 1] = { R, "QualityLevel", R.QualityLevel }
+				R.QualityLevel = Enum.QualityLevel.Level01
+			end
+		end)
+
+		LQ_Set(Lighting, "GlobalShadows", false)
+		LQ_Set(Lighting, "FogStart", 0)
+		LQ_Set(Lighting, "FogEnd", Options.LowQualityDistance.Value)
+
+		if Intensity >= 2 then
+			LQ_Set(Lighting, "Technology", Enum.Technology.Compatibility)
+			LQ_Set(Lighting, "EnvironmentDiffuseScale", 0)
+			LQ_Set(Lighting, "EnvironmentSpecularScale", 0)
+			pcall(function() LQ_Set(workspace.Terrain, "Decoration", false) end)
+		end
+
+		if Intensity >= 3 then
+			-- Lighting 直接子级数量恒定（几十个），遍历无压力
+			for _, Child in Lighting:GetChildren() do
+				if LQ_PostFx[Child.ClassName] then LQ_Set(Child, "Enabled", false) end
+			end
+		end
+	end
+
+	-- 每秒复查一次，Doors 有时会把光照设置改回去
+	local function LQ_Reassert()
+		local Lighting = Services.Lighting
+		if Lighting.GlobalShadows ~= false then pcall(function() Lighting.GlobalShadows = false end) end
+		local Dist = Options.LowQualityDistance.Value
+		if Lighting.FogEnd ~= Dist then pcall(function() Lighting.FogEnd = Dist end) end
+		pcall(function() settings().Rendering.QualityLevel = Enum.QualityLevel.Level01 end)
+	end
+
+	-- 增量分帧：只接管新出现的特效对象，每个对象仅一次查表，成本极低
+	local function LQ_PumpStep()
+		local Now = os.clock()
+		if Now - LQ.LastReassert > 1 then
+			LQ.LastReassert = Now
+			pcall(LQ_Reassert)
+		end
+
+		local Queue = LQ.Queue
+		local Count = #Queue
+		if LQ.Index > Count then
+			LQ.Queue = {}
+			LQ.Index = 1
+			if LQ.Pump then LQ.Pump:Disconnect() LQ.Pump = nil end
+			return
+		end
+
+		local Deadline = Now + LQ_Budget
+		while LQ.Index <= Count do
+			local Object = Queue[LQ.Index]
+			Queue[LQ.Index] = nil
+			LQ.Index = LQ.Index + 1
+			if Object and Object.Parent and not LQ.Done[Object] then
+				LQ.Done[Object] = true
+				local Ok, Class = pcall(function() return Object.ClassName end)
+				if Ok and LQ_FxClasses[Class] then
+					LQ_Set(Object, "Enabled", false)
+				end
+			end
+			if os.clock() >= Deadline then break end
+		end
+	end
+
+	local function LQ_Push(Object)
+		if #LQ.Queue > 2000 then return end
+		LQ.Queue[#LQ.Queue + 1] = Object
+		if not LQ.Pump then
+			LQ.Pump = Services.RunService.Heartbeat:Connect(LQ_PumpStep)
+		end
+	end
+
+	local function LQ_Stop()
+		if not LQ.Active then return end
+		LQ.Active = false
+		if LQ.Conn then LQ.Conn:Disconnect() LQ.Conn = nil end
+		if LQ.Pump then LQ.Pump:Disconnect() LQ.Pump = nil end
+		LQ.Queue = {}
+		LQ.Index = 1
+		LQ.Done = setmetatable({}, { __mode = "k" })
+		-- 记录条数恒定（几十条），恢复瞬间完成，不会卡顿
+		for Index = #LQ.Records, 1, -1 do
+			local Record = LQ.Records[Index]
+			LQ.Records[Index] = nil
+			pcall(function() Record[1][Record[2]] = Record[3] end)
+		end
+	end
+
+	local function LQ_Start()
+		LQ_Stop()
+		LQ.Active = true
+		LQ_ApplyGlobal()
+		-- 不做 workspace 全量扫描，只接管后续新生成的对象
+		LQ.Conn = workspace.DescendantAdded:Connect(LQ_Push)
+	end
+
+	Toggles.LowQuality:OnChanged(function(Value)
+		if Value then LQ_Start() else LQ_Stop() end
+	end)
+
+	Options.LowQualityIntensity:OnChanged(function()
+		if Toggles.LowQuality.Value then LQ_Start() end
+	end)
+
+	Options.LowQualityDistance:OnChanged(function(Value)
+		if LQ.Active then pcall(function() Services.Lighting.FogEnd = Value end) end
+	end)
 
 Toggles.AmbientToggle:AddColorPicker("AmbientColor", { Text = "环境光", Default = Color3.fromRGB(255, 255, 255), Transparency = 0 })
 Toggles.AmbientToggle:OnChanged(function(Value)
@@ -5619,7 +5778,7 @@ Groupboxes.Floors_Automation:AddSlider("AutoSteerMinecartDuckDistance", {
 Groupboxes.Floors_Automation:AddDivider()
 Groupboxes.Floors_Automation:AddToggle("RoomsAutoWalk",             { Text = "自动通关 The Rooms",       Default = false, Tooltip = "在 The Rooms 中自动移动并躲避实体。" })
 Groupboxes.Floors_Automation:AddSlider("RoomsAutoWalkPathfindTimeout", { Text = "寻路超时", Min = 0.5, Max = 3, Default = 1, Rounding = 1 })
-Groupboxes.Floors_Automation:AddToggle("RoomsAutoWalkIgnoreA60",    { Text = "忽略 A-60",      Default = false, Tooltip = "A-60 出现时继续行走，并自动开启位置伪装。" })
+Groupboxes.Floors_Automation:AddToggle("RoomsAutoWalkIgnoreA60",    { Text = "忽略 A-60",      Default = false, Tooltip = "A-60 出现时继续行走，并自动开启无敌。" })
 Groupboxes.Floors_Automation:AddToggle("RoomsAutoWalkShowPathToggle", { Text = "显示路径",       Default = false, Tooltip = "显示自动行走的当前房间路径。" })
 Groupboxes.Floors_Automation:AddToggle("RoomsAutoWalkSpoofFootsteps", {
     Text = "伪装脚步声", Default = false, Tooltip = "让角色看起来像在正常行走。",
@@ -6562,7 +6721,7 @@ Functions.HandleCharacter = function(NewCharacter)
 	end
 
 	Connections.MainHandler = Services.RunService.RenderStepped:Connect(function()
-		if Services.Workspace:FindFirstChild("Camera") then
+		if not Camera or Camera.Parent == nil then
 			Camera = Services.Workspace:FindFirstChild("Camera")
 		end
 
@@ -6571,14 +6730,23 @@ Functions.HandleCharacter = function(NewCharacter)
 		end
 
 		if Globals.Lagging or (Options.SpeedBoostSlider.Value <= 6 and Options.FlySpeed.Value <= 21) then
-			CollisionPartClone.Massless = true
+			if not CollisionPartClone.Massless then CollisionPartClone.Massless = true end
 		end
 
 		Globals.IsEyes    = Services.Workspace:FindFirstChild("Eyes") ~= nil or Services.Workspace:FindFirstChild("Lookman") ~= nil
 		Globals.IsLookman = Services.Workspace:FindFirstChild("BackdoorLookman") ~= nil
 
 		if Toggles.AmbientToggle.Value then
-			Services.TweenService:Create(Services.Lighting, TweenInfo.new(0.2, Enum.EasingStyle.Exponential), { Ambient = Options.AmbientColor.Value }):Play()
+			-- 只在颜色变化时重建 Tween，原来每帧新建一个动画对象
+			if Globals.AmbientTarget ~= Options.AmbientColor.Value then
+				Globals.AmbientTarget = Options.AmbientColor.Value
+				if Globals.AmbientTween then pcall(function() Globals.AmbientTween:Cancel() end) end
+				Globals.AmbientTween = Services.TweenService:Create(Services.Lighting,
+					TweenInfo.new(0.2, Enum.EasingStyle.Exponential), { Ambient = Globals.AmbientTarget })
+				Globals.AmbientTween:Play()
+			end
+		else
+			Globals.AmbientTarget = nil
 		end
 
 		if Main_Game then
@@ -6598,9 +6766,14 @@ Functions.HandleCharacter = function(NewCharacter)
 			Globals.MainUI.Statistics.Death.Text = "死于 Verity"
 		end
 
-		local MainFrame = Globals.MainUI:FindFirstChild("MainFrame")
+		local MainFrame = Globals.MainFrameCache
+		if not MainFrame or MainFrame.Parent == nil then
+			MainFrame = Globals.MainUI:FindFirstChild("MainFrame")
+			Globals.MainFrameCache = MainFrame
+		end
 		if MainFrame then
-			local Effects = MainFrame.Healthbar:FindFirstChild("Effects")
+			local Healthbar = MainFrame:FindFirstChild("Healthbar")
+			local Effects = Healthbar and Healthbar:FindFirstChild("Effects")
 			if Effects and Effects:FindFirstChild("Crouching") then
 				Effects.Crouching.Visible = Functions.IsCrouching()
 			end
@@ -6619,7 +6792,12 @@ Functions.HandleCharacter = function(NewCharacter)
 		end
 
 		if LocalPlayer:GetAttribute("Alive") == true then
-			Services.SoundService:WaitForChild("Main").Volume = 1
+			local SoundMain = Globals.SoundMain
+			if not SoundMain or SoundMain.Parent == nil then
+				SoundMain = Services.SoundService:FindFirstChild("Main")
+				Globals.SoundMain = SoundMain
+			end
+			if SoundMain then SoundMain.Volume = 1 end
 		end
 
 		if Floor == "OldHotel" or Floor == "Fools" then
@@ -6816,9 +6994,7 @@ Functions.HandleHidingTransparency = function(Model)
 			end)
 			table.insert(Connections, HideConn)
 			Model.Destroying:Once(function()
-				HideConn:Disconnect()
-				local Pos = table.find(Connections, HideConn)
-				if Pos then table.remove(Connections, Pos) end
+				pcall(function() HideConn:Disconnect() end)
 			end)
 		end
 	end
@@ -7009,6 +7185,7 @@ Functions.HandleObject = function(Object)
 				local W = Instance.new("WeldConstraint", HP)
 				W.Part0 = HP W.Part1 = DoorPart W.Enabled = true
 			end
+			HighlightModel:SetAttribute("IsDoorHighlight", true)
 			table.insert(Objects.Doors, HighlightModel)
 			if Toggles.DoorESPToggle.Value then Functions.AddESP({ Object = HighlightModel, Text = "门 " .. Functions.GetDoorNumber(Object), Color = Options.DoorESPColor.Value }, true) end
 		else
@@ -7024,6 +7201,7 @@ Functions.HandleObject = function(Object)
 			local W = Instance.new("WeldConstraint", HP)
 			W.Part0 = HP W.Part1 = Root W.Enabled = true
 			Instance.new("Humanoid", Object).Name = "HighlightHumanoid"
+			HP:SetAttribute("IsDoorHighlight", true)
 			table.insert(Objects.Doors, HP)
 			if Toggles.DoorESPToggle.Value then Functions.AddESP({ Object = HP, Text = "门 " .. Functions.GetDoorNumber(Object), Color = Options.DoorESPColor.Value }, true) end
 		end
@@ -7901,27 +8079,47 @@ Functions.TriggerPrompt = function(Prompt)
 end
 
 Globals.LastAutoInteractFire = tick()
+local AutoInteractCursor = 0
+local AUTO_INTERACT_BUDGET = 150
 Connections.AutoInteract = Services.RunService.Heartbeat:Connect(function()
 	local Active = Toggles.AutoInteractToggle.Value or Options.AutoInteractKeybind:GetState()
-    if not Active then return end
-    if tick() - Globals.LastAutoInteractFire < 1/60 then return end
+	if not Active then return end
+	if tick() - Globals.LastAutoInteractFire < 1/60 then return end
 
-	for _, Prompt in Objects.Prompts do
-        if Prompt:GetAttribute("ParentRoom") and tonumber(Prompt:GetAttribute("ParentRoom")) ~= tonumber(LocalPlayer:GetAttribute("CurrentRoom")) then continue end
+	-- 房间号每帧只取一次，原来在循环内每个 Prompt 都取一遍
+	local Room = tonumber(LocalPlayer:GetAttribute("CurrentRoom"))
+	local Prompts = Objects.Prompts
+	local Count = #Prompts
+	if Count == 0 then return end
 
-		if Prompt.Parent and (Prompt.Parent:IsA("BasePart") or Prompt.Parent:IsA("Model")) then
+	-- 轮转游标：每帧最多检查固定数量，开销恒定，不随游戏进程增长
+	local Scanned = 0
+	while Scanned < AUTO_INTERACT_BUDGET and Scanned < Count do
+		Scanned = Scanned + 1
+		AutoInteractCursor = AutoInteractCursor % Count + 1
+		local Prompt = Prompts[AutoInteractCursor]
+		if Prompt == nil or Prompt.Parent == nil then continue end
+
+		local PromptRoom = tonumber(Prompt:GetAttribute("ParentRoom"))
+		if PromptRoom and PromptRoom ~= Room then continue end
+
+		local Parent = Prompt.Parent
+		if Parent and (Parent:IsA("BasePart") or Parent:IsA("Model")) then
 			local Distance
-			if Prompt.Parent:IsA("BasePart") then
-				Distance = LocalPlayer:DistanceFromCharacter(Prompt.Parent.Position)
+			if Parent:IsA("BasePart") then
+				Distance = LocalPlayer:DistanceFromCharacter(Parent.Position)
 			else
-				Distance = LocalPlayer:DistanceFromCharacter(Prompt.Parent:GetPivot().Position)
+				Distance = LocalPlayer:DistanceFromCharacter(Parent:GetPivot().Position)
 			end
-			if Distance <= Prompt.MaxActivationDistance and Prompt.Enabled or Distance <= Prompt.MaxActivationDistance and Prompt.Name == "LongPushPrompt" or Distance <= Prompt.MaxActivationDistance and Prompt.Name == "BigPropPrompt" then
+			if Distance <= Prompt.MaxActivationDistance and Prompt.Enabled
+				or Distance <= Prompt.MaxActivationDistance and Prompt.Name == "LongPushPrompt"
+				or Distance <= Prompt.MaxActivationDistance and Prompt.Name == "BigPropPrompt" then
 				task.spawn(Functions.TriggerPrompt, Prompt)
 			end
 		end
 	end
-    Globals.LastAutoInteractFire = tick()
+
+	Globals.LastAutoInteractFire = tick()
 end)
 
 Connections.InfiniteItemsHandler = Services.ProximityPromptService.PromptTriggered:Connect(function(Object)
@@ -8102,35 +8300,98 @@ Connections.EntityDescendantHandler = Services.Workspace.DescendantAdded:Connect
 end)
 
 local LastClean = tick()
-Connections.Cleaner = Services.RunService.Heartbeat:Connect(function()
-	if tick() - LastClean <= 0.5 then return end
-	LastClean = tick()
+-- 原地压缩：整体 O(n)，替代逐个 table.remove 的 O(n^2) 搬移
+local function CompactArray(List)
+	local Write = 0
+	for Read = 1, #List do
+		local Item = List[Read]
+		if Item ~= nil and Item.Parent ~= nil then
+			Write = Write + 1
+			if Write ~= Read then List[Write] = Item end
+		end
+	end
+	for Index = Write + 1, #List do List[Index] = nil end
+end
+Functions.CompactArray = CompactArray
 
+-- 清理已断开的临时连接（仅数组部分），阻止 Connections 无限膨胀
+local function CompactConnections()
+	local Write = 0
+	for Read = 1, #Connections do
+		local Conn = Connections[Read]
+		local Keep = true
+		if Conn then
+			local Ok, Live = pcall(function() return Conn.Connected end)
+			if Ok and Live == false then Keep = false end
+		end
+		if Keep then
+			Write = Write + 1
+			if Write ~= Read then Connections[Write] = Conn end
+		end
+	end
+	for Index = Write + 1, #Connections do Connections[Index] = nil end
+end
+
+local LastClean = tick()
+local LastConnClean = tick()
+Connections.Cleaner = Services.RunService.Heartbeat:Connect(function()
+	local Now = tick()
+	if Now - LastClean <= 2 then return end
+	LastClean = Now
+
+	-- 对象集合：先断开失效项的 ESP，再一次性压缩
 	for ArrayName, Array in Objects do
-		local I = #Array
-		while I >= 1 do
-			local Object = Array[I]
-			if Object == nil or not Object:IsDescendantOf(Services.Workspace) then
-				table.remove(Array, I)
-				local Conn = ESPConnections[Object]
-				if Conn then
-					Conn:Disconnect()
-					ESPConnections[Object] = nil
-					local Pos = table.find(Connections, Conn)
-					if Pos then table.remove(Connections, Pos) end
+		local Count = #Array
+		if Count > 0 then
+			for Index = 1, Count do
+				local Object = Array[Index]
+				if Object ~= nil and Object.Parent == nil then
+					local Conn = ESPConnections[Object]
+					if Conn then
+						pcall(function() Conn:Disconnect() end)
+						ESPConnections[Object] = nil
+					end
 				end
 			end
-			I -= 1
+			CompactArray(Array)
+		end
+	end
+
+	-- 连接数组每 30 秒整理一次即可，避免频繁扫描
+	if Now - LastConnClean > 30 then
+		LastConnClean = Now
+		CompactConnections()
+	end
+end)
+
+-- 换房间后旧房间会被销毁，此时立刻压缩一次，不等下一轮定时清理
+Connections.RoomSweep = LocalPlayer:GetAttributeChangedSignal("CurrentRoom"):Connect(function()
+	task.wait(1.5)
+	for ArrayName, Array in Objects do
+		if #Array > 0 then
+			for Index = 1, #Array do
+				local Object = Array[Index]
+				if Object ~= nil and Object.Parent == nil then
+					local Conn = ESPConnections[Object]
+					if Conn then
+						pcall(function() Conn:Disconnect() end)
+						ESPConnections[Object] = nil
+					end
+				end
+			end
+			Functions.CompactArray(Array)
 		end
 	end
 end)
 
 local LastPromptFix = tick()
 Connections.PromptFixer = Services.RunService.Heartbeat:Connect(function()
-	if tick() - LastPromptFix <= 0.5 then return end
+	if tick() - LastPromptFix <= 1 then return end
 	LastPromptFix = tick()
-	for _, Prompt in Objects.Prompts do
-		if Prompt:HasTag("DisableWhenEnabledOnClient") then
+	local Prompts = Objects.Prompts
+	for Index = 1, #Prompts do
+		local Prompt = Prompts[Index]
+		if Prompt and Prompt.Parent and Prompt:HasTag("DisableWhenEnabledOnClient") then
 			Prompt:RemoveTag("DisableWhenEnabledOnClient")
 		end
 	end
